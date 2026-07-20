@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 
@@ -35,6 +36,16 @@ public class GlobalExceptionHandler {
     public Object handleResourceNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         logger.warn("Recurso no encontrado en {}: {}", request.getRequestURI(), ex.getMessage());
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    /**
+     * 404 — Recurso estático inexistente (p. ej. /favicon.ico). Sin este handler
+     * el catch-all de abajo lo convierte en un 500.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public Object handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request) {
+        logger.warn("Recurso estático no encontrado: {}", request.getRequestURI());
+        return build(HttpStatus.NOT_FOUND, "El recurso solicitado no existe.", request);
     }
 
     /**
