@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error | Restaurante Los Patos</title>
+    <link th:href="@{/style.css}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace; }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-900 min-h-screen flex items-center justify-center p-8">
+
+    <div class="w-full max-w-lg bg-white border border-stone-200 shadow-xl rounded-3xl p-12 text-center">
+
+        <div class="h-20 w-20 mx-auto rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-stone-900 shadow-lg mb-8">
+            <i class="fas fa-triangle-exclamation text-3xl"></i>
+        </div>
+
+        <span class="text-7xl font-black tracking-tighter text-stone-900 block leading-none"
+              th:text="${error != null ? error.status() : 'Error'}">500</span>
+        <span class="text-xs uppercase tracking-[0.3em] text-amber-600 font-black block mt-2"
+              th:text="${error != null ? error.error() : 'Error inesperado'}">Internal Server Error</span>
+
+        <p class="text-stone-500 text-sm mt-6 leading-relaxed"
+           th:text="${error != null ? error.message() : 'Ha ocurrido un error inesperado.'}">
+            Ha ocurrido un error inesperado.
+        </p>
+
+        <p class="text-[10px] uppercase tracking-widest text-stone-400 mt-4"
+           th:if="${error != null}"
+           th:text="${error.path()} + ' · ' + ${#temporals.format(error.timestamp(), 'dd/MM/yyyy HH:mm')}">
+            /ruta · fecha
+        </p>
+
+        <a th:href="@{/dashboard}"
+           class="inline-flex items-center space-x-3 mt-10 bg-stone-900 text-white font-black text-xs uppercase tracking-widest py-4 px-8 rounded-xl hover:bg-amber-600 transition-all">
+            <i class="fas fa-home"></i>
+            <span>Volver al inicio</span>
+        </a>
+    </div>
+
+</body>
+</html>

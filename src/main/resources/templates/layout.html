@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(content, title)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title} + ' | Restaurante Los Patos'">Sistema Restaurante</title>
+    
+    <!-- CSS y Fuentes -->
+    <link th:href="@{/style.css}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- SweetAlert2 (Para notificaciones y modales) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+        .swal2-popup-custom {
+            border-radius: 1.5rem !important;
+            border: 1px solid #e7e5e4 !important;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-900" x-data="{ openMenu: true }">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- Sidebar Izquierda -->
+        <aside 
+            x-show="openMenu"
+            class="fixed lg:static inset-y-0 left-0 h-full w-80 bg-white border-r border-stone-200 shadow-xl z-50 p-8 flex flex-col"
+        >
+            <div class="flex justify-between items-center mb-12">
+                <div class="flex flex-col">
+                    <span class="text-xs uppercase tracking-[0.3em] text-stone-500 font-black mb-2">Sistema de Gestión</span>
+                    <span class="text-2xl text-black tracking-tighter font-black uppercase leading-none">Restaurante</span>
+                    <span class="text-4xl text-amber-600 font-black italic tracking-tighter leading-tight">'Los Patos'</span>
+                </div>
+                <button @click="openMenu = false" class="lg:hidden text-stone-400 hover:text-amber-600 p-2">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <nav class="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                <!-- Dashboard: Solo ROLE_ADMIN -->
+                <a th:if="${#authorization.expression('hasAuthority(''ROLE_ADMIN'')')}"
+                   th:href="@{/dashboard}" class="flex items-center space-x-4 p-4 rounded-2xl text-stone-500 hover:text-amber-600 hover:bg-stone-50 transition-all group">
+                    <i class="fas fa-home w-6 text-xl"></i>
+                    <span class="font-bold text-base uppercase tracking-wider">Inicio</span>
+                </a>
+
+                <!-- Carta: Todos -->
+                <a th:href="@{/carta}" class="flex items-center space-x-4 p-4 rounded-2xl text-stone-500 hover:text-amber-600 hover:bg-stone-50 transition-all">
+                    <i class="fas fa-utensils w-6 text-xl"></i>
+                    <span class="font-bold text-base uppercase tracking-wider">Carta</span>
+                </a>
+
+                <!-- Pedidos: Todos -->
+                <a th:href="@{/pedidos}" class="flex items-center space-x-4 p-4 rounded-2xl text-stone-500 hover:text-amber-600 hover:bg-stone-50 transition-all">
+                    <i class="fas fa-clipboard-list w-6 text-xl"></i>
+                    <span class="font-bold text-base uppercase tracking-wider">Pedidos</span>
+                </a>
+
+                <!-- Mesas: Todos -->
+                <a th:href="@{/mesas}" class="flex items-center space-x-4 p-4 rounded-2xl text-stone-500 hover:text-amber-600 hover:bg-stone-50 transition-all">
+                    <i class="fas fa-chair w-6 text-xl"></i>
+                    <span class="font-bold text-base uppercase tracking-wider">Mesas</span>
+                </a>
+
+                <!-- Empleados: Solo ROLE_ADMIN -->
+                <a th:if="${#authorization.expression('hasAuthority(''ROLE_ADMIN'')')}" 
+                   th:href="@{/empleados}" class="flex items-center space-x-4 p-4 rounded-2xl text-stone-500 hover:text-amber-600 hover:bg-stone-50 transition-all">
+                    <i class="fas fa-id-badge w-6 text-xl"></i>
+                    <span class="font-bold text-base uppercase tracking-wider">Empleados</span>
+                </a>
+
+                <!-- Clientes: Todos -->
+                <a th:href="@{/clientes}" class="flex items-center space-x-4 p-4 rounded-2xl text-stone-500 hover:text-amber-600 hover:bg-stone-50 transition-all">
+                    <i class="fas fa-users w-6 text-xl"></i>
+                    <span class="font-bold text-base uppercase tracking-wider">Clientes</span>
+                </a>
+
+                <!-- Proveedores: Solo ROLE_ADMIN -->
+                <a th:if="${#authorization.expression('hasAuthority(''ROLE_ADMIN'')')}" 
+                   th:href="@{/proveedores}" class="flex items-center space-x-4 p-4 rounded-2xl text-stone-500 hover:text-amber-600 hover:bg-stone-50 transition-all">
+                    <i class="fas fa-truck w-6 text-xl"></i>
+                    <span class="font-bold text-base uppercase tracking-wider">Proveedores</span>
+                </a>
+
+                <!-- Tickets: Solo ROLE_ADMIN y ROLE_CAJERO -->
+                <a th:if="${#authorization.expression('hasAnyAuthority(''ROLE_ADMIN'', ''ROLE_CAJERO'')')}" 
+                   th:href="@{/tickets}" class="flex items-center space-x-4 p-4 rounded-2xl text-stone-500 hover:text-amber-600 hover:bg-stone-50 transition-all">
+                    <i class="fas fa-file-invoice-dollar w-6 text-xl"></i>
+                    <span class="font-bold text-base uppercase tracking-wider">Tickets</span>
+                </a>
+            </nav>
+
+            <div class="pt-6 border-t border-stone-100">
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="w-full flex items-center space-x-4 p-4 rounded-xl text-red-600 hover:bg-red-50 transition-all group text-left">
+                        <i class="fas fa-power-off text-lg"></i>
+                        <span class="font-black text-sm uppercase tracking-wider">Cerrar Sesión</span>
+                    </button>
+                </form>
+            </div>
+
+        </aside>
+
+        <!-- Area Principal -->
+        <main class="flex-1 overflow-y-auto bg-stone-50 relative">
+            <!-- Header Superior -->
+            <header class="bg-stone-900 backdrop-blur-md px-8 py-4 flex justify-between items-center sticky top-0 z-30 shadow-lg border-b border-white/5">
+                <div class="flex items-center space-x-4">
+                    <button @click="openMenu = true" x-show="!openMenu" class="p-2 rounded-xl text-amber-500 hover:bg-white/5 transition-colors">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <h1 class="text-xl font-black text-white tracking-widest uppercase" th:text="${title}">Página</h1>
+                </div>
+                
+                <div class="flex items-center space-x-6">
+                    <div class="flex flex-col text-right hidden md:block">
+                        <span class="text-[9px] font-black text-amber-500 uppercase tracking-[0.3em] opacity-80">Administrador</span>
+                        <span class="text-sm font-black text-white block tracking-tighter" th:text="${#authentication != null ? #authentication.name : 'Juan Pérez'}">Usuario</span>
+                    </div>
+                    <div class="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-stone-900 shadow-lg border-2 border-white/10">
+                        <i class="fas fa-user-shield text-lg"></i>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Contenido Dinámico -->
+            <div class="p-8 lg:p-12 max-w-7xl mx-auto">
+                <div th:replace="${content}"></div>
+            </div>
+
+            <!-- Overlay para móviles -->
+            <div x-show="openMenu" @click="openMenu = false" class="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-40 lg:hidden"></div>
+        </main>
+    </div>
+
+    <!-- Lógica de Sesión y Notificaciones -->
+<script th:inline="javascript">
+    let inactivityTimeout;
+    let warningTimeout;
+    let isWarningShowing = false; // Bandera para controlar el modal
+    const warningTime = 840000; // 14 minutos (aviso)
+    const logoutTime = 900000;  // 15 minutos (cierre)
+    const userName = /*[[${#authentication.name}]]*/ 'Usuario';
+
+    // Función para mostrar Bienvenida
+    function showWelcomeToast() {
+        if (sessionStorage.getItem('welcomeShown')) return;
+
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 4500,
+            timerProgressBar: true,
+            background: '#1c1917',
+            color: '#ffffff',
+            customClass: { popup: 'swal2-popup-custom' }
+        });
+
+        Toast.fire({
+            icon: 'success',
+            iconColor: '#f59e0b',
+            title: `<span style="font-family: monospace; font-size: 11px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase;">BIENVENIDO, ${userName}</span>`,
+            html: '<span style="font-family: monospace; font-size: 10px; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8;">Acceso seguro establecido</span>'
+        });
+
+        sessionStorage.setItem('welcomeShown', 'true');
+    }
+
+    function clearAllTimeouts() {
+        if (inactivityTimeout) {
+            clearTimeout(inactivityTimeout);
+            inactivityTimeout = null;
+        }
+        if (warningTimeout) {
+            clearTimeout(warningTimeout);
+            warningTimeout = null;
+        }
+    }
+
+    function resetInactivityTimer() {
+        // Limpiar todos los timeouts existentes
+        clearAllTimeouts();
+        
+        // Cerrar el modal de advertencia si está abierto
+        if (isWarningShowing) {
+            Swal.close();
+            isWarningShowing = false;
+        }
+
+        // Iniciar timeout de aviso (14 min)
+        warningTimeout = setTimeout(() => {
+            isWarningShowing = true;
+            Swal.fire({
+                title: '<span style="font-family: monospace; font-weight: 900;">¿SIGUES AHÍ?</span>',
+                html: '<span style="font-family: monospace; font-size: 11px; text-transform: uppercase; color: #78716c;">Tu sesión expirará pronto por inactividad.</span>',
+                icon: 'warning',
+                iconColor: '#f59e0b',
+                background: '#ffffff',
+                confirmButtonColor: '#1c1917',
+                confirmButtonText: 'CONTINUAR TRABAJANDO',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                customClass: { 
+                    popup: 'swal2-popup-custom',
+                    confirmButton: 'rounded-xl font-bold py-3 px-6 text-xs tracking-widest'
+                }
+            }).then((result) => {
+                isWarningShowing = false;
+                if (result.isConfirmed) {
+                    resetInactivityTimer(); // Reiniciar completamente
+                }
+            });
+        }, warningTime);
+
+        // Iniciar timeout de cierre (15 min)
+        inactivityTimeout = setTimeout(() => {
+            // Asegurarse de que el modal no esté abierto
+            if (isWarningShowing) {
+                Swal.close();
+                isWarningShowing = false;
+            }
+            // Redirigir al logout
+            window.location.href = '/logout?expired=true';
+        }, logoutTime);
+    }
+
+    // Función para resetear SOLO si la sesión está activa
+    function handleUserActivity() {
+        // Si el modal de advertencia está abierto, ignoramos el reset
+        // para no reiniciar el timer mientras el usuario ya fue advertido
+        if (!isWarningShowing) {
+            resetInactivityTimer();
+        }
+    }
+
+    // Eventos iniciales
+    window.onload = () => {
+        showWelcomeToast();
+        resetInactivityTimer();
+    };
+
+    // Escuchar actividad real (excepto cuando el modal está abierto)
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    activityEvents.forEach(evt => {
+        document.addEventListener(evt, handleUserActivity);
+    });
+    
+    // Limpiar timeouts si el usuario navega o cierra la página
+    window.addEventListener('beforeunload', () => {
+        clearAllTimeouts();
+    });
+</script>
+</body>
+</html>

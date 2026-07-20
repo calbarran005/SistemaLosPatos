@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Identificación | Los Patos</title>
+    <link th:href="@{/style.css}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: ui-monospace, 'Courier New', monospace; }
+
+        /* ── Inputs estilo CRUD clientes ── */
+        .f-input {
+            width: 100%;
+            background: #fafaf9;
+            border: 1px solid #e7e5e4;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1c1917;
+            outline: none;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .f-input:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245,158,11,.12);
+        }
+        .f-input::placeholder { color: #d6d3d1; font-weight: 400; }
+
+        /* ── Labels estilo CRUD ── */
+        .f-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .2em;
+            color: #a8a29e;
+            margin-bottom: 6px;
+        }
+        .f-required { color: #f87171; }
+
+        /* ── Botones ── */
+        .btn-dark {
+            width: 100%; padding: 14px 16px; border-radius: 12px;
+            background: #1c1917; color: #fff;
+            font-size: 10px; font-weight: 900;
+            text-transform: uppercase; letter-spacing: .25em;
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: background .2s, transform .1s;
+        }
+        .btn-dark:hover { background: #000; }
+        .btn-dark:active { transform: scale(.97); }
+        .btn-dark:disabled { background: #d6d3d1; color: #a8a29e; cursor: not-allowed; }
+
+        .btn-outline {
+            width: 100%; padding: 13px 16px; border-radius: 12px;
+            background: #fff; color: #57534e;
+            font-size: 10px; font-weight: 900;
+            text-transform: uppercase; letter-spacing: .2em;
+            border: 1px solid #e7e5e4; cursor: pointer;
+            transition: background .2s, border-color .2s;
+        }
+        .btn-outline:hover { background: #f5f5f4; border-color: #d6d3d1; }
+
+        .btn-green {
+            width: 100%; padding: 14px 16px; border-radius: 12px;
+            background: #16a34a; color: #fff;
+            font-size: 10px; font-weight: 900;
+            text-transform: uppercase; letter-spacing: .25em;
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: background .2s, transform .1s;
+        }
+        .btn-green:hover { background: #15803d; }
+        .btn-green:active { transform: scale(.97); }
+
+        /* ── Card header ── */
+        .ch { padding: 20px 28px; }
+        .cb { padding: 24px 28px; }
+    </style>
+</head>
+
+<body class="bg-gradient-to-b from-amber-50 to-stone-100 min-h-screen flex items-start justify-center p-4 pt-8"
+      x-data="authApp()" x-init="init()">
+
+<div id="mesa-token" th:data-token="${token}" style="display:none"></div>
+
+<div class="w-full max-w-sm pb-12">
+
+    <!-- ── Logo ── -->
+    <div class="text-center mb-8">
+        <div class="relative inline-block mb-3">
+            <img th:src="@{/logopatos.jpg}" alt="Logo"
+                 class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg">
+            <div class="absolute -bottom-1 -right-1 w-7 h-7 bg-amber-400 rounded-full border-2 border-white flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                </svg>
+            </div>
+        </div>
+        <h1 class="text-2xl font-black text-stone-900 leading-tight">
+            Restaurante <span class="text-amber-600 italic">'Los Patos'</span>
+        </h1>
+        <div class="inline-flex items-center gap-2 mt-2 bg-white border border-stone-200 rounded-full px-4 py-1.5 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+            <span class="text-xs font-bold text-stone-600">
+                Mesa <span class="text-stone-900 font-black" th:text="${mesa.numero}">1</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- ── Banner mesa ocupada (Thymeleaf) ── -->
+    <div th:if="${mesaOcupada}"
+         style="background:#fef3c7;border:2px solid #f59e0b;border-radius:16px;padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start;">
+        <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;color:#d97706;flex-shrink:0;margin-top:1px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <div>
+            <p style="font-size:12px;font-weight:900;color:#92400e;text-transform:uppercase;letter-spacing:.08em;">Mesa ocupada</p>
+            <p style="font-size:13px;color:#78350f;margin-top:4px;">
+                Esta mesa tiene un pedido activo de
+                <strong th:text="${clienteNombre}">Cliente</strong>.
+            </p>
+            <p style="font-size:11px;color:#a16207;margin-top:6px;font-weight:600;">
+                Si es tu pedido, verifica tu DNI o RUC para acceder.
+            </p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         PASO 1 — Buscar por DNI o RUC
+    ═══════════════════════════════════════ -->
+    <div x-show="paso === 1" x-cloak>
+        <div class="bg-white rounded-[2.5rem] shadow-xl border border-stone-200 overflow-hidden">
+            <div class="ch bg-stone-900">
+                <h2 class="text-white font-black text-sm uppercase tracking-widest text-center">Identifícate</h2>
+                <p class="text-stone-400 text-[10px] font-bold uppercase tracking-widest text-center mt-2">Acceso a la Mesa</p>
+            </div>
+            
+            <!-- ALERTA MESA OCUPADA -->
+            <div th:if="${mesaOcupada}" class="mx-6 mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+                <div class="flex gap-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                        <p class="text-[10px] font-black text-amber-800 uppercase tracking-widest leading-none mb-1">Mesa en uso</p>
+                        <p class="text-xs text-amber-700 font-medium">Esta mesa tiene un pedido activo a nombre de <span class="font-bold" th:text="${clienteNombre}"></span>. Ingresa el mismo documento para continuar.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cb space-y-5">
+                <div>
+                    <label class="f-label">
+                        DNI o RUC <span class="f-required">*</span>
+                    </label>
+                    <div style="position:relative;">
+                        <input type="text" x-model="documento" maxlength="11"
+                               placeholder="Ingresa tu documento"
+                               @keyup.enter="buscarCliente()"
+                               class="f-input" style="padding-right:72px;">
+                        <span x-show="documento.replace(/\s/g,'').length === 8" x-cloak
+                              style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                                     font-size:9px;font-weight:900;background:#dbeafe;color:#1d4ed8;
+                                     padding:3px 8px;border-radius:6px;letter-spacing:.08em;text-transform:uppercase;">
+                            DNI
+                        </span>
+                        <span x-show="documento.replace(/\s/g,'').length === 11" x-cloak
+                              style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                                     font-size:9px;font-weight:900;background:#fef3c7;color:#92400e;
+                                     padding:3px 8px;border-radius:6px;letter-spacing:.08em;text-transform:uppercase;">
+                            RUC
+                        </span>
+                    </div>
+                    
+                    <!-- ERROR DE SEGURIDAD / DOCUMENTO -->
+                    <template x-if="errorDoc">
+                        <p class="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[11px] font-bold leading-relaxed flex gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span x-text="errorDoc"></span>
+                        </p>
+                    </template>
+                </div>
+
+                <button @click="buscarCliente()" :disabled="buscando" class="btn-dark mt-2">
+                    <span x-show="!buscando">Verificar Documento</span>
+                    <span x-show="buscando" style="display:flex;align-items:center;gap:8px;">
+                        <svg class="animate-spin" style="width:14px;height:14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                        Validando...
+                    </span>
+                </button>
+
+                <div th:unless="${mesaOcupada}">
+                    <div style="display:flex;align-items:center;gap:10px; margin-top: 8px; margin-bottom: 8px;">
+                        <div style="flex:1;height:1px;background:#e7e5e4;"></div>
+                        <span style="font-size:10px;font-weight:700;color:#a8a29e;">¿primera vez?</span>
+                        <div style="flex:1;height:1px;background:#e7e5e4;"></div>
+                    </div>
+
+                    <button @click="irAEleccion()" class="btn-outline mt-2">
+                        Registrarme ahora →
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         PASO 2 — Perfil encontrado → confirmar
+    ═══════════════════════════════════════ -->
+    <div x-show="paso === 2" x-cloak>
+        <div class="bg-white rounded-[2.5rem] shadow-xl border border-stone-200 overflow-hidden">
+            <div class="ch bg-green-600" style="display:flex;align-items:center;gap:12px;">
+                <div style="width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width:18px;height:18px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-white font-black text-sm uppercase tracking-widest">Perfil encontrado</h2>
+                    <p class="text-green-100 text-xs mt-0.5">Confirma que eres tú para continuar.</p>
+                </div>
+            </div>
+            <div class="cb">
+                <!-- Tarjeta datos -->
+                <div style="background:#fafaf9;border:1px solid #e7e5e4;border-radius:12px;padding:0 16px;margin-bottom:20px;">
+                    <div style="padding:8px 0 5px;">
+                        <span x-show="clienteEncontrado?.tipo === 'NATURAL'"
+                              style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;
+                                     background:#dbeafe;color:#1d4ed8;padding:2px 10px;border-radius:999px;">
+                            Persona Natural
+                        </span>
+                        <span x-show="clienteEncontrado?.tipo === 'JURIDICO'"
+                              style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;
+                                     background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:999px;">
+                            Empresa / RUC
+                        </span>
+                    </div>
+
+                    <template x-if="clienteEncontrado?.tipo === 'NATURAL'">
+                        <div>
+                            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0eeec;">
+                                <span class="f-label" style="margin:0;">Nombre</span>
+                                <span style="font-size:14px;font-weight:700;color:#1c1917;text-align:right;"
+                                      x-text="(clienteEncontrado?.nombre || '') + ' ' + (clienteEncontrado?.apellidos || '')"></span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0eeec;">
+                                <span class="f-label" style="margin:0;">DNI</span>
+                                <span style="font-size:13px;font-weight:700;color:#1c1917;" x-text="clienteEncontrado?.dni || ''"></span>
+                            </div>
+                            <div x-show="clienteEncontrado?.telefono" style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0eeec;">
+                                <span class="f-label" style="margin:0;">Teléfono</span>
+                                <span style="font-size:13px;font-weight:600;color:#57534e;" x-text="clienteEncontrado?.telefono"></span>
+                            </div>
+                            <div x-show="clienteEncontrado?.email" style="display:flex;justify-content:space-between;padding:10px 0;">
+                                <span class="f-label" style="margin:0;">Email</span>
+                                <span style="font-size:13px;font-weight:600;color:#57534e;max-width:55%;word-break:break-word;text-align:right;" x-text="clienteEncontrado?.email"></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="clienteEncontrado?.tipo === 'JURIDICO'">
+                        <div>
+                            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0eeec;">
+                                <span class="f-label" style="margin:0;">Razón Social</span>
+                                <span style="font-size:13px;font-weight:700;color:#1c1917;text-align:right;max-width:60%;" x-text="clienteEncontrado?.nombre || ''"></span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0eeec;">
+                                <span class="f-label" style="margin:0;">RUC</span>
+                                <span style="font-size:13px;font-weight:700;color:#1c1917;" x-text="clienteEncontrado?.ruc || ''"></span>
+                            </div>
+                            <div x-show="clienteEncontrado?.representante" style="display:flex;justify-content:space-between;padding:10px 0;">
+                                <span class="f-label" style="margin:0;">Representante</span>
+                                <span style="font-size:13px;font-weight:600;color:#57534e;" x-text="clienteEncontrado?.representante"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <form th:action="@{/mesa/{token}/auth(token=${token})}" method="post" id="form-confirmar">
+                    <input type="hidden" name="clienteId" :value="clienteEncontrado?.id">
+                </form>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <button class="btn-green" onclick="document.getElementById('form-confirmar').submit()">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:15px;height:15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Sí, soy yo — Continuar al menú
+                    </button>
+                    <button class="btn-outline" @click="paso = 1; documento = ''">← No soy yo, volver</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         PASO 3 — Elegir tipo de registro
+    ═══════════════════════════════════════ -->
+    <div x-show="paso === 3" x-cloak>
+        <div class="bg-white rounded-[2.5rem] shadow-xl border border-stone-200 overflow-hidden">
+            <div class="ch bg-stone-900" style="display:flex;align-items:center;gap:10px;">
+                <button @click="paso = 1"
+                        style="width:30px;height:30px;background:rgba(255,255,255,.1);border:none;
+                               border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width:14px;height:14px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <div>
+                    <h2 class="text-white font-black text-sm uppercase tracking-widest">Tipo de registro</h2>
+                    <p class="text-stone-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Selecciona una opción</p>
+                </div>
+            </div>
+            <div class="cb space-y-4">
+
+                <!-- Opción: Persona Natural -->
+                <button @click="irAFormulario('NATURAL')"
+                        class="w-full text-left p-5 rounded-3xl border-2 border-stone-200 hover:border-stone-900 hover:bg-stone-50 transition-all group shadow-sm hover:shadow-md">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div style="width:44px;height:44px;background:#f5f5f4;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s;">
+                            <svg xmlns="http://www.w3.org/2000/svg" style="width:22px;height:22px;color:#78716c;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p style="font-size:13px;font-weight:900;color:#1c1917;">Persona Natural</p>
+                            <p style="font-size:10px;color:#a8a29e;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">DNI · Nombre · Apellidos</p>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;color:#d6d3d1;margin-left:auto;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                </button>
+
+                <!-- Opción: Empresa / Jurídico -->
+                <button @click="irAFormulario('JURIDICO')"
+                        class="w-full text-left p-5 rounded-3xl border-2 border-stone-200 hover:border-amber-500 hover:bg-amber-50 transition-all group shadow-sm hover:shadow-md">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div style="width:44px;height:44px;background:#fef3c7;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg xmlns="http://www.w3.org/2000/svg" style="width:22px;height:22px;color:#92400e;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p style="font-size:13px;font-weight:900;color:#1c1917;">Persona Jurídica</p>
+                            <p style="font-size:10px;color:#a8a29e;margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">RUC · Razón Social</p>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;color:#d6d3d1;margin-left:auto;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         PASO 4 — Registro Persona Natural
+    ═══════════════════════════════════════ -->
+    <div x-show="paso === 4" x-cloak>
+        <div class="bg-white rounded-[2.5rem] shadow-xl border border-stone-200 overflow-hidden">
+            <div class="ch bg-stone-900" style="position:relative;overflow:hidden;">
+                <div style="position:absolute;top:-32px;right:-32px;width:120px;height:120px;background:rgba(245,158,11,.08);border-radius:50%;pointer-events:none;"></div>
+                <div style="display:flex;align-items:center;gap:14px;position:relative;">
+                    <div style="width:44px;height:44px;background:#f59e0b;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.3);">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;color:#1c1917;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                        </svg>
+                    </div>
+                    <div style="display:flex;flex-direction:column;">
+                        <h2 class="text-white font-black text-sm uppercase tracking-widest">Nuevo Cliente</h2>
+                        <p style="font-size:9px;color:#f59e0b;font-weight:900;text-transform:uppercase;letter-spacing:.3em;margin-top:2px;">Persona Natural</p>
+                    </div>
+                    <button @click="paso = 3"
+                            style="margin-left:auto;width:30px;height:30px;background:rgba(255,255,255,.1);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:14px;height:14px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <form th:action="@{/mesa/{token}/auth(token=${token})}" method="post"
+                  id="form-natural"
+                  class="cb" style="display:flex;flex-direction:column;gap:16px;">
+                <input type="hidden" name="tipoRegistro" value="NATURAL">
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div>
+                        <label class="f-label">Nombre <span class="f-required">*</span></label>
+                        <input type="text" name="nombre" x-model="form.nombre"
+                               required maxlength="20" placeholder="Ej. Juan" class="f-input">
+                    </div>
+                    <div>
+                        <label class="f-label">Apellidos <span class="f-required">*</span></label>
+                        <input type="text" name="apellidos" x-model="form.apellidos"
+                               required maxlength="20" placeholder="Ej. Pérez García" class="f-input">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="f-label">DNI <span class="f-required">*</span></label>
+                    <input type="text" name="dni" x-model="form.dni"
+                           required maxlength="8" inputmode="numeric"
+                           @input="form.dni = form.dni.replace(/[^0-9]/g,'')"
+                           placeholder="12345678" class="f-input">
+                    <p x-show="form.dni && (form.dni.length !== 8 || !/^\d+$/.test(form.dni))" x-cloak
+                       style="color:#ef4444;font-size:11px;font-weight:600;margin-top:5px;">
+                        El DNI debe tener exactamente 8 dígitos numéricos.
+                    </p>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div>
+                        <label class="f-label">Teléfono</label>
+                        <input type="text" name="telefono" x-model="form.telefono"
+                               maxlength="9" inputmode="numeric"
+                               @input="form.telefono = form.telefono.replace(/[^0-9]/g,'')"
+                               placeholder="987654321" class="f-input">
+                    </div>
+                    <div>
+                        <label class="f-label">Email</label>
+                        <input type="email" name="email" x-model="form.email"
+                               maxlength="40" placeholder="correo@ejemplo.com" class="f-input">
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;margin-top:4px;">
+                    <button type="button" @click="paso = 3" class="btn-outline" style="flex:1;">
+                        Cancelar
+                    </button>
+                    <button type="button" @click="submitNatural()" class="btn-dark" style="flex:2;">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:12px;height:12px;color:#f59e0b;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Registrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         PASO 5 — Registro Empresa (Jurídico)
+    ═══════════════════════════════════════ -->
+    <div x-show="paso === 5" x-cloak>
+        <div class="bg-white rounded-[2.5rem] shadow-xl border border-stone-200 overflow-hidden">
+            <div class="ch bg-stone-900" style="position:relative;overflow:hidden;">
+                <div style="position:absolute;top:-32px;right:-32px;width:120px;height:120px;background:rgba(245,158,11,.08);border-radius:50%;pointer-events:none;"></div>
+                <div style="display:flex;align-items:center;gap:14px;position:relative;">
+                    <div style="width:44px;height:44px;background:#f59e0b;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.3);">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;color:#1c1917;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                    </div>
+                    <div style="display:flex;flex-direction:column;">
+                        <h2 class="text-white font-black text-sm uppercase tracking-widest">Nueva Empresa</h2>
+                        <p style="font-size:9px;color:#f59e0b;font-weight:900;text-transform:uppercase;letter-spacing:.3em;margin-top:2px;">Persona Jurídica</p>
+                    </div>
+                    <button @click="paso = 3"
+                            style="margin-left:auto;width:30px;height:30px;background:rgba(255,255,255,.1);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:14px;height:14px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <form th:action="@{/mesa/{token}/auth(token=${token})}" method="post"
+                  id="form-juridico"
+                  class="cb" style="display:flex;flex-direction:column;gap:16px;">
+                <input type="hidden" name="tipoRegistro" value="JURIDICO">
+
+                <div>
+                    <label class="f-label">Razón Social <span class="f-required">*</span></label>
+                    <input type="text" name="razonSocial" x-model="form.razonSocial"
+                           required maxlength="40" placeholder="Ej. Inversiones Agro S.A.C." class="f-input">
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div>
+                        <label class="f-label">RUC <span class="f-required">*</span></label>
+                        <input type="text" name="ruc" x-model="form.ruc"
+                               required maxlength="11" inputmode="numeric"
+                               @input="form.ruc = form.ruc.replace(/[^0-9]/g,'')"
+                               placeholder="20547896321" class="f-input">
+                        <p x-show="form.ruc && (form.ruc.length !== 11 || !/^\d+$/.test(form.ruc))" x-cloak
+                           style="color:#ef4444;font-size:10px;font-weight:600;margin-top:4px;">
+                            11 dígitos numéricos.
+                        </p>
+                    </div>
+                    <div>
+                        <label class="f-label">Representante</label>
+                        <input type="text" name="representante" x-model="form.representante"
+                               maxlength="20" placeholder="Nombre del contacto" class="f-input">
+                    </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div>
+                        <label class="f-label">Teléfono</label>
+                        <input type="text" name="telefono" x-model="form.telefono"
+                               maxlength="9" inputmode="numeric"
+                               @input="form.telefono = form.telefono.replace(/[^0-9]/g,'')"
+                               placeholder="987654321" class="f-input">
+                    </div>
+                    <div>
+                        <label class="f-label">Email</label>
+                        <input type="email" name="email" x-model="form.email"
+                               maxlength="40" placeholder="contacto@empresa.com" class="f-input">
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;margin-top:4px;">
+                    <button type="button" @click="paso = 3" class="btn-outline" style="flex:1;">
+                        Cancelar
+                    </button>
+                    <button type="button" @click="submitJuridico()" class="btn-dark" style="flex:2;">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:12px;height:12px;color:#f59e0b;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Registrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <p class="text-center text-xs text-stone-400 mt-5 font-medium px-4">
+        Tus datos se usan únicamente para identificarte en el comprobante.
+    </p>
+</div>
+
+<script>
+function authApp() {
+    return {
+        paso: 1,
+        documento: '',
+        buscando: false,
+        errorDoc: '',
+        clienteEncontrado: null,
+        form: {
+            nombre: '', apellidos: '', dni: '',
+            ruc: '', razonSocial: '', representante: '',
+            telefono: '', email: ''
+        },
+
+        init() {},
+
+        async buscarCliente() {
+            const d = this.documento.trim().replace(/\s/g, '');
+            this.errorDoc = '';
+
+            if (!d) { this.errorDoc = 'Ingresa tu DNI (8 dígitos) o RUC (11 dígitos).'; return; }
+            if (!/^\d+$/.test(d)) { this.errorDoc = 'Solo se permiten dígitos numéricos.'; return; }
+            if (d.length !== 8 && d.length !== 11) {
+                this.errorDoc = 'DNI: 8 dígitos   ·   RUC: 11 dígitos.'; return;
+            }
+
+            this.buscando = true;
+            const token = document.getElementById('mesa-token').dataset.token;
+            try {
+                const resp = await fetch(`/mesa/${token}/auth/buscar?documento=${encodeURIComponent(d)}`);
+                const data = await resp.json();
+
+                if (data.encontrado) {
+                    this.clienteEncontrado = data;
+                    this.paso = 2;
+                } else if (data.error) {
+                    this.errorDoc = data.error;
+                } else {
+                    // Pre-llenar el documento en el formulario correspondiente
+                    if (d.length === 11) {
+                        this.form.ruc = d;
+                        this.paso = 3; // mostrar selección → luego jurídico
+                    } else {
+                        this.form.dni = d;
+                        this.paso = 3; // mostrar selección → luego natural
+                    }
+                }
+            } catch(e) {
+                this.errorDoc = 'Error de conexión. Intenta de nuevo.';
+            } finally { this.buscando = false; }
+        },
+
+        irAEleccion() {
+            this.form = { nombre: '', apellidos: '', dni: '', ruc: '', razonSocial: '', representante: '', telefono: '', email: '' };
+            this.paso = 3;
+        },
+
+        irAFormulario(tipo) {
+            this.paso = tipo === 'JURIDICO' ? 5 : 4;
+        },
+
+        submitNatural() {
+            const nombre = this.form.nombre.trim();
+            const apellidos = this.form.apellidos.trim();
+            const dni = this.form.dni.trim();
+            const telefono = this.form.telefono.trim();
+            const email = this.form.email.trim();
+            if (!nombre) { toastValidacion('El nombre es obligatorio'); return; }
+            if (nombre.length > 20) { toastValidacion('El nombre no puede superar 20 caracteres'); return; }
+            if (!apellidos) { toastValidacion('Los apellidos son obligatorios'); return; }
+            if (apellidos.length > 20) { toastValidacion('Los apellidos no pueden superar 20 caracteres'); return; }
+            if (!/^\d{8}$/.test(dni)) { toastValidacion('El DNI debe tener exactamente 8 dígitos'); return; }
+            if (telefono && !/^9\d{8}$/.test(telefono)) { toastValidacion('El teléfono debe tener 9 dígitos y empezar con 9'); return; }
+            if (email.length > 40) { toastValidacion('El email no puede superar 40 caracteres'); return; }
+            document.getElementById('form-natural').submit();
+        },
+
+        submitJuridico() {
+            const razonSocial = this.form.razonSocial.trim();
+            const ruc = this.form.ruc.trim();
+            const representante = this.form.representante.trim();
+            const telefono = this.form.telefono.trim();
+            const email = this.form.email.trim();
+            if (!razonSocial) { toastValidacion('La razón social es obligatoria'); return; }
+            if (razonSocial.length > 40) { toastValidacion('La razón social no puede superar 40 caracteres'); return; }
+            if (!/^\d{11}$/.test(ruc)) { toastValidacion('El RUC debe tener exactamente 11 dígitos'); return; }
+            if (representante.length > 20) { toastValidacion('El representante no puede superar 20 caracteres'); return; }
+            if (telefono && !/^9\d{8}$/.test(telefono)) { toastValidacion('El teléfono debe tener 9 dígitos y empezar con 9'); return; }
+            if (email.length > 40) { toastValidacion('El email no puede superar 40 caracteres'); return; }
+            document.getElementById('form-juridico').submit();
+        }
+    };
+}
+
+// Toast flotante de error de validación (mismo estilo que el aviso de bienvenida)
+function toastValidacion(msg) {
+    Swal.fire({
+        toast: true, position: 'top-end', icon: 'error', iconColor: '#ffffff',
+        title: `<span style="font-family:monospace;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">${msg}</span>`,
+        showConfirmButton: false, timer: 4000, timerProgressBar: true,
+        background: '#ef4444', color: '#ffffff',
+        customClass: { popup: 'swal2-popup-custom' }
+    });
+}
+</script>
+</body>
+</html>

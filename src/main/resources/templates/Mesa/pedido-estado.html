@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estado del Pedido | Los Patos</title>
+    <link th:href="@{/style.css}" rel="stylesheet">
+</head>
+<body class="bg-stone-100 min-h-screen">
+
+<header class="bg-white border-b border-stone-200 px-4 py-3 shadow-sm">
+    <div class="max-w-sm mx-auto flex items-center justify-between">
+        <div>
+            <span class="text-xs font-black uppercase tracking-widest text-stone-400">Mesa</span>
+            <span class="text-xl font-black text-stone-900 ml-1" th:text="${mesa.numero}">1</span>
+        </div>
+        <span class="text-xl font-black text-amber-600 italic">'Los Patos'</span>
+    </div>
+</header>
+
+<main class="max-w-sm mx-auto px-4 py-6 space-y-4">
+
+    <!-- Estado actual -->
+    <div th:switch="${pedido.estado.name()}" class="mt-4">
+        <div th:case="'PENDIENTE'" class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 text-center">
+            <div class="text-4xl mb-2">⏳</div>
+            <h2 class="font-black text-amber-800 text-lg">Pedido recibido</h2>
+            <p class="text-amber-700 text-sm mt-1">El mesero tomará tu pedido en breve.</p>
+        </div>
+        <div th:case="'PREPARANDO'" class="bg-blue-50 border-2 border-blue-300 rounded-2xl p-5 text-center">
+            <div class="text-4xl mb-2">👨‍🍳</div>
+            <h2 class="font-black text-blue-800 text-lg">En preparación</h2>
+            <p class="text-blue-700 text-sm mt-1">¡Tu pedido está siendo preparado!</p>
+        </div>
+        <div th:case="'SERVIDO'" class="bg-green-50 border-2 border-green-300 rounded-2xl p-5 text-center">
+            <div class="text-4xl mb-2">🍽</div>
+            <h2 class="font-black text-green-800 text-lg">¡Listo para servir!</h2>
+            <p class="text-green-700 text-sm mt-1">Tu pedido ya está en camino a tu mesa.</p>
+        </div>
+        <div th:case="'PAGADO'" class="bg-stone-50 border-2 border-stone-300 rounded-2xl p-5 text-center">
+            <div class="text-4xl mb-2">✅</div>
+            <h2 class="font-black text-stone-800 text-lg">¡Cuenta cerrada!</h2>
+            <p class="text-stone-600 text-sm mt-1">Gracias por tu visita.</p>
+        </div>
+    </div>
+
+    <!-- Resumen del pedido -->
+    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-stone-100 flex justify-between items-center">
+            <span class="font-black text-stone-900 text-sm">Pedido <span th:text="'#' + ${pedido.id_pedido}">#001</span></span>
+            <span class="text-xs text-stone-400 font-medium" th:text="${#temporals.format(pedido.fecha, 'HH:mm')}">12:00</span>
+        </div>
+        <div class="divide-y divide-stone-100">
+            <div th:each="d : ${detalles}" class="px-4 py-3 flex justify-between items-center">
+                <div>
+                    <span class="font-bold text-stone-900 text-sm" th:text="${d.platoBebida.nombre}">Plato</span>
+                    <span class="text-stone-400 text-xs ml-2" th:text="'x' + ${d.cantidad}">x1</span>
+                </div>
+                <span class="font-black text-green-700 text-sm" th:text="'S/.' + ${#numbers.formatDecimal(d.subtotal, 1, 2)}">S/.0.00</span>
+            </div>
+        </div>
+        <div class="px-4 py-3 bg-stone-50 flex justify-between items-center border-t border-stone-200">
+            <span class="font-black text-stone-700 text-xs uppercase tracking-widest">Total</span>
+            <span class="font-black text-green-700 text-xl" th:text="'S/.' + ${#numbers.formatDecimal(pedido.total, 1, 2)}">S/.0.00</span>
+        </div>
+    </div>
+
+    <!-- Acciones -->
+    <div class="space-y-3" th:if="${pedido.estado.name() != 'PAGADO' and pedido.estado.name() != 'CANCELADO'}">
+        <a th:href="@{/mesa/{token}/menu(token=${token})}"
+           class="block w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-2xl text-sm uppercase tracking-widest text-center transition active:scale-95 shadow-md">
+            + Agregar más ítems
+        </a>
+    </div>
+
+    <p class="text-center text-xs text-stone-400 pt-2">
+        Para llamar al mesero o cerrar la cuenta, solicítalo directamente.
+    </p>
+</main>
+
+</body>
+</html>

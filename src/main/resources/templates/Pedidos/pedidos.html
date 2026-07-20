@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section}, 'Gestión de Pedidos')}">
+<body>
+<section x-data="pedidosApp()" x-init="init()">
+
+    <!-- WebSocket libs -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+    <!-- Notificación flotante -->
+    <div x-show="notificacion" x-cloak
+         class="fixed top-4 right-4 z-50 bg-stone-900 text-white rounded-2xl shadow-2xl p-5 max-w-xs transition-all">
+        <div class="flex items-start gap-3">
+            <div class="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">🍽</div>
+            <div class="flex-1">
+                <p class="font-black text-sm" x-text="notificacion?.tipo === 'NUEVO' ? '¡Nuevo pedido!' : 'Pedido actualizado'"></p>
+                <p class="text-stone-300 text-xs mt-0.5">
+                    Mesa <span x-text="notificacion?.mesaNumero"></span>
+                    · <span x-text="notificacion?.clienteNombre"></span>
+                </p>
+                <p class="text-amber-400 text-xs font-bold mt-1" x-text="'S/.' + notificacion?.total?.toFixed(2)"></p>
+            </div>
+            <button @click="notificacion = null" class="text-stone-400 hover:text-white ml-1">×</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Columna izquierda: lista de pedidos activos -->
+        <div class="lg:col-span-1 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-black text-stone-900 text-lg">Pedidos en Sala</h3>
+                <span class="text-xs text-stone-400 font-bold flex items-center gap-1">
+                    <span :class="wsConectado ? 'bg-green-500' : 'bg-red-400'" class="w-2 h-2 rounded-full"></span>
+                    <span x-text="wsConectado ? 'En vivo' : 'Desconectado'"></span>
+                </span>
+            </div>
+
+            <div class="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto pr-1 custom-scrollbar">
+                <!-- Pedidos dinámicos -->
+                <template x-for="pedido in pedidos" :key="pedido.id_pedido">
+                    <div @click="seleccionarPedido(pedido)"
+                         :class="pedidoSeleccionado?.id_pedido === pedido.id_pedido ? 'border-amber-400 bg-amber-50' : 'border-stone-200 bg-white'"
+                         class="rounded-xl border shadow-sm p-4 cursor-pointer hover:shadow-md transition border-l-4"
+                         :style="'border-left-color: ' + colorEstado(pedido.estado)">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-black text-stone-900 text-sm" x-text="'Pedido #' + pedido.id_pedido"></span>
+                            <span class="text-xs px-2 py-0.5 rounded-full font-black"
+                                  :class="badgeEstado(pedido.estado)"
+                                  x-text="pedido.estado"></span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-stone-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                            <span x-text="'Mesa ' + pedido.mesa?.numero"></span>
+                            <span class="text-stone-300">·</span>
+                            <span x-text="'S/.' + pedido.total?.toFixed(2)" class="font-bold text-green-700"></span>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Vacío -->
+                <div x-show="pedidos.length === 0" class="text-center py-12 text-stone-400">
+                    <p class="font-bold text-sm">Sin pedidos activos.</p>
+                    <p class="text-xs mt-1">Los pedidos de clientes aparecerán aquí.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna derecha: detalle del pedido seleccionado -->
+        <div class="lg:col-span-2 space-y-4">
+            <template x-if="!pedidoSeleccionado">
+                <div class="flex items-center justify-center h-64 rounded-2xl border-2 border-dashed border-stone-200">
+                    <p class="text-stone-400 font-bold text-sm">Selecciona un pedido para ver el detalle</p>
+                </div>
+            </template>
+
+            <template x-if="pedidoSeleccionado">
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-black text-stone-900 text-lg" x-text="'Pedido #' + pedidoSeleccionado.id_pedido"></h3>
+                        <div class="flex gap-2">
+                            <!-- Cambiar estado -->
+                            <select @change="cambiarEstado($event.target.value)"
+                                    :value="pedidoSeleccionado.estado"
+                                    class="px-3 py-2 border border-stone-200 rounded-xl text-xs font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-400">
+                                <option value="PENDIENTE">Pendiente</option>
+                                <option value="PREPARANDO">Preparando</option>
+                                <option value="SERVIDO">Servido</option>
+                            </select>
+                            <!-- Cerrar cuenta -->
+                            <button @click="abrirCerrarCuenta()"
+                                    class="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-black hover:bg-red-700 transition shadow-sm">
+                                Cerrar Cuenta
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de detalles -->
+                    <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead class="bg-stone-50 border-b border-stone-100">
+                                <tr>
+                                    <th class="px-5 py-3 text-xs font-black text-stone-500 uppercase tracking-wider w-10">Serv.</th>
+                                    <th class="px-5 py-3 text-xs font-black text-stone-500 uppercase tracking-wider">Producto</th>
+                                    <th class="px-5 py-3 text-xs font-black text-stone-500 uppercase tracking-wider">Cant.</th>
+                                    <th class="px-5 py-3 text-xs font-black text-stone-500 uppercase tracking-wider">Precio</th>
+                                    <th class="px-5 py-3 text-xs font-black text-stone-500 uppercase tracking-wider text-right">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-stone-100">
+                                <template x-for="d in detalles" :key="d.id">
+                                    <tr class="hover:bg-stone-50 transition" :class="d.servido ? 'bg-green-50/30' : ''">
+                                        <td class="px-5 py-3">
+                                            <input type="checkbox" 
+                                                   :checked="d.servido"
+                                                   @change="marcarServido(d.id, $event.target.checked)"
+                                                   class="w-5 h-5 rounded-lg border-stone-300 text-amber-500 focus:ring-amber-500 cursor-pointer">
+                                        </td>
+                                        <td class="px-5 py-3">
+                                            <p class="text-sm font-bold text-stone-900" :class="d.servido ? 'line-through text-stone-400' : ''" x-text="d.nombre"></p>
+                                        </td>
+                                        <td class="px-5 py-3 text-sm text-stone-600" x-text="d.cantidad"></td>
+                                        <td class="px-5 py-3 text-sm text-stone-600" x-text="'S/.' + d.precio.toFixed(2)"></td>
+                                        <td class="px-5 py-3 text-sm font-black text-green-700 text-right" x-text="'S/.' + d.subtotal.toFixed(2)"></td>
+                                    </tr>
+                                </template>
+                                <tr x-show="detalles.length === 0">
+                                    <td colspan="5" class="px-5 py-4 text-sm text-stone-400 text-center">Cargando detalles...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="px-5 py-4 bg-stone-50 border-t border-stone-200 flex justify-between items-center">
+                            <span class="font-black text-stone-700 text-xs uppercase tracking-widest">Total</span>
+                            <span class="font-black text-green-700 text-2xl" x-text="'S/.' + (pedidoSeleccionado.total || 0).toFixed(2)"></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Modal cerrar cuenta — rediseñado -->
+    <div x-show="modalCerrar" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div @click="modalCerrar = false" class="absolute inset-0 bg-stone-900/70 backdrop-blur-sm"></div>
+
+        <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-md z-10 overflow-hidden">
+
+            <!-- Header del modal -->
+            <div class="bg-stone-900 px-7 py-6 relative overflow-hidden p-4">
+                <div class="absolute -top-8 -right-8 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="relative flex items-center gap-4">
+                    <div class="w-11 h-11 bg-amber-500 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-stone-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-white font-black text-lg uppercase tracking-widest leading-none">Cerrar Cuenta</h3>
+                        <p class="text-stone-400 text-[10px] mt-1 uppercase tracking-[.2em]">
+                            Pedido <span x-text="'#' + pedidoSeleccionado?.id_pedido" class="text-amber-400 font-black"></span>
+                            · Mesa <span x-text="pedidoSeleccionado?.mesa?.numero" class="text-amber-400 font-black"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-7 space-y-5">
+
+                <!-- Resumen de ítems -->
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[.2em] text-stone-400 mb-3">Resumen del pedido</p>
+                    <div class="bg-stone-50 rounded-2xl border border-stone-100 overflow-hidden">
+                        <div class="max-h-40 overflow-y-auto divide-y divide-stone-100">
+                            <template x-for="d in detalles" :key="d.id">
+                                <div class="flex items-center justify-between px-4 py-2.5">
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="w-6 h-6 bg-stone-200 rounded-lg text-[10px] font-black text-stone-600 flex items-center justify-center flex-shrink-0"
+                                              x-text="d.cantidad"></span>
+                                        <span class="text-sm font-bold text-stone-800 truncate max-w-[160px]" x-text="d.nombre"></span>
+                                    </div>
+                                    <span class="text-sm font-black text-stone-700 ml-2" x-text="'S/.' + d.subtotal.toFixed(2)"></span>
+                                </div>
+                            </template>
+                        </div>
+                        <!-- Total -->
+                        <div class="px-4 py-3 bg-white border-t-2 border-stone-200 flex justify-between items-center">
+                            <span class="text-xs font-black uppercase tracking-widest text-stone-500">Total a cobrar</span>
+                            <span class="text-2xl font-black text-green-700"
+                                  x-text="'S/. ' + (pedidoSeleccionado?.total || 0).toFixed(2)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Método de pago -->
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[.2em] text-stone-400 mb-3">Método de pago</p>
+                    <div class="grid grid-cols-3 gap-2.5 space-between">
+                        <!-- Efectivo -->
+                        <button @click="metodoPago = 'Efectivo'"
+                                :class="metodoPago === 'Efectivo' ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 text-stone-500 hover:border-stone-300'"
+                                class="flex flex-col mr-2 items-center gap-1.5 py-3.5 rounded-2xl border-2 transition-all active:scale-95">
+                            <span class="text-xl">💵</span>
+                            <span class="text-[10px] font-black uppercase tracking-wider">Efectivo</span>
+                        </button>
+
+                        <!-- Tarjeta -->
+                        <button @click="metodoPago = 'Tarjeta'"
+                                :class="metodoPago === 'Tarjeta' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-stone-200 text-stone-500 hover:border-stone-300'"
+                                class="flex flex-col mr-2 ml-2 items-center gap-1.5 py-3.5 rounded-2xl border-2 transition-all active:scale-95">
+                            <span class="text-xl">💳</span>
+                            <span class="text-[10px] font-black uppercase tracking-wider">Tarjeta</span>
+                        </button>
+                        <!-- Yape/Plin -->
+                        <button @click="metodoPago = 'Yape/Plin'"
+                                :class="metodoPago === 'Yape/Plin' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-stone-200 text-stone-500 hover:border-stone-300'"
+                                class="flex flex-col items-center mr-2 ml-2 gap-1.5 py-3.5 rounded-2xl border-2 transition-all active:scale-95">
+                            <span class="text-xl">📱</span>
+                            <span class="text-[10px] font-black uppercase tracking-wider">Yape/Plin</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Botones acción -->
+                <div class="flex gap-3 pt-1 mt-2">
+                    <button @click="modalCerrar = false"
+                            class="flex-1 py-3.5 border border-stone-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-stone-500 hover:bg-stone-50 transition">
+                        Cancelar
+                    </button>
+                    <button @click="confirmarCierre()"
+                            :disabled="cerrando"
+                            style="background-color:#16a34a;color:#ffffff;"
+                            class="flex-[2] py-3.5 p-4 hover:opacity-90 disabled:opacity-60 rounded-2xl text-xs font-black uppercase tracking-widest transition shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                        <svg x-show="!cerrando" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <svg x-show="cerrando" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                        </svg>
+                        <span x-show="!cerrando"> Realizar Pago  </span>
+                        <span x-show="cerrando">Procesando...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function pedidosApp() {
+        return {
+            pedidos: [],
+            pedidoSeleccionado: null,
+            detalles: [],
+            notificacion: null,
+            wsConectado: false,
+            modalCerrar: false,
+            metodoPago: 'Efectivo',
+            cerrando: false,
+
+            init() {
+                this.cargarPedidos();
+                this.conectarWebSocket();
+            },
+
+            conectarWebSocket() {
+                try {
+                    const socket = new SockJS('/ws');
+                    const stomp = Stomp.over(socket);
+                    stomp.debug = null; // silence logs
+
+                    stomp.connect({}, () => {
+                        this.wsConectado = true;
+                        stomp.subscribe('/topic/pedidos', (msg) => {
+                            const data = JSON.parse(msg.body);
+                            this.manejarNotificacion(data);
+                        });
+                    }, () => {
+                        this.wsConectado = false;
+                        setTimeout(() => this.conectarWebSocket(), 5000);
+                    });
+                } catch(e) {
+                    console.error('WebSocket error:', e);
+                }
+            },
+
+            manejarNotificacion(data) {
+                this.notificacion = data;
+                setTimeout(() => { if (this.notificacion === data) this.notificacion = null; }, 5000);
+
+                // Refrescar lista de pedidos
+                this.cargarPedidos();
+
+                // Si el pedido seleccionado fue actualizado, refrescar detalles
+                if (this.pedidoSeleccionado && this.pedidoSeleccionado.id_pedido === data.pedidoId) {
+                    this.cargarDetalles(data.pedidoId);
+                }
+            },
+
+            async cargarPedidos() {
+                try {
+                    const resp = await fetch('/pedidos/api');
+                    if (resp.ok) {
+                        const nuevos = await resp.json();
+                        this.pedidos = nuevos;
+                        if (this.pedidoSeleccionado) {
+                            const actualizado = nuevos.find(p => p.id_pedido === this.pedidoSeleccionado.id_pedido);
+                            if (actualizado) this.pedidoSeleccionado = actualizado;
+                        }
+                    }
+                } catch(e) {}
+            },
+
+            seleccionarPedido(pedido) {
+                this.pedidoSeleccionado = pedido;
+                this.detalles = [];
+                this.cargarDetalles(pedido.id_pedido);
+            },
+
+            async cargarDetalles(pedidoId) {
+                try {
+                    const resp = await fetch('/pedidos/' + pedidoId + '/detalle');
+                    const data = await resp.json();
+                    this.detalles = data.detalles;
+                    if (this.pedidoSeleccionado) this.pedidoSeleccionado.total = data.total;
+                } catch(e) {}
+            },
+
+            async cambiarEstado(nuevoEstado) {
+                if (!this.pedidoSeleccionado) return;
+                await fetch('/pedidos/' + this.pedidoSeleccionado.id_pedido + '/estado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'estado=' + nuevoEstado
+                });
+                this.pedidoSeleccionado.estado = nuevoEstado;
+                const p = this.pedidos.find(p => p.id_pedido === this.pedidoSeleccionado.id_pedido);
+                if (p) p.estado = nuevoEstado;
+            },
+
+            async marcarServido(detalleId, servido) {
+                if (!this.pedidoSeleccionado) return;
+                const pedidoId = this.pedidoSeleccionado.id_pedido;
+                try {
+                    await fetch(`/pedidos/${pedidoId}/detalle/${detalleId}/servido?servido=${servido}`, {
+                        method: 'POST'
+                    });
+                    const d = this.detalles.find(item => item.id === detalleId);
+                    if (d) d.servido = servido;
+                } catch(e) {
+                    alert('Error al actualizar plato');
+                }
+            },
+
+            abrirCerrarCuenta() {
+                this.metodoPago = 'Efectivo';
+                this.modalCerrar = true;
+            },
+
+            async confirmarCierre() {
+                if (!this.pedidoSeleccionado || this.cerrando) return;
+                this.cerrando = true;
+                try {
+                    const resp = await fetch('/pedidos/' + this.pedidoSeleccionado.id_pedido + '/cerrar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'metodoPago=' + encodeURIComponent(this.metodoPago)
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.modalCerrar = false;
+                        window.location.href = '/tickets/' + data.ticketId + '/imprimir';
+                    } else {
+                        alert('Error al cerrar la cuenta. Intenta de nuevo.');
+                    }
+                } catch(e) {
+                    alert('Error de conexión.');
+                } finally {
+                    this.cerrando = false;
+                }
+            },
+
+            colorEstado(estado) {
+                const map = { PENDIENTE: '#f59e0b', PREPARANDO: '#3b82f6', SERVIDO: '#10b981', PAGADO: '#6b7280' };
+                return map[estado] || '#e7e5e4';
+            },
+
+            badgeEstado(estado) {
+                const map = {
+                    PENDIENTE: 'bg-amber-100 text-amber-700',
+                    PREPARANDO: 'bg-blue-100 text-blue-700',
+                    SERVIDO: 'bg-green-100 text-green-700',
+                    PAGADO: 'bg-stone-100 text-stone-600'
+                };
+                return map[estado] || 'bg-stone-100 text-stone-600';
+            }
+        };
+    }
+    </script>
+
+</section>
+</body>
+</html>

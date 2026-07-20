@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="'Boleta ' + ${ticket.serieNumero}">Boleta</title>
+    <link th:href="@{/style.css}" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Courier New', Courier, monospace; background: #f5f5f4; margin: 0; }
+
+        #ticket-sunat {
+            width: 302px;
+            background: #fff;
+            margin: 0 auto;
+        }
+        .ticket-separador { border: none; border-top: 1px dashed #d6d3d1; margin: 0; }
+        .ticket-seccion { padding: 12px 16px; }
+
+        .tabla-items { width: 100%; border-collapse: collapse; font-size: 10px; }
+        .tabla-items th {
+            font-weight: 900; font-size: 9px; text-transform: uppercase; letter-spacing: .08em;
+            color: #78716c; padding: 3px 2px; border-bottom: 1px solid #e7e5e4;
+        }
+        .tabla-items td { padding: 4px 2px; font-size: 10px; color: #1c1917; vertical-align: top; }
+        .tabla-items tr:not(:last-child) td { border-bottom: 1px solid #f5f5f4; }
+
+        /* ── IMPRESIÓN: centrado en hoja ── */
+        @media print {
+            body { background: #fff; }
+            .no-print { display: none !important; }
+            #ticket-sunat {
+                margin: 0 auto !important;   /* centrado horizontal */
+                box-shadow: none !important;
+                border: none !important;
+            }
+            @page { size: auto; margin: 12mm; }
+        }
+    </style>
+</head>
+<body class="min-h-screen" style="padding:32px 16px;">
+
+<!-- ── Acciones (no imprime) ── -->
+<div class="no-print" style="max-width:340px;margin:0 auto 24px;">
+    <div style="background:#fff;border:1px solid #e7e5e4;border-radius:16px;padding:16px;display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="width:40px;height:40px;background:#dcfce7;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;color:#16a34a;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+        <div>
+            <p style="font-weight:900;color:#1c1917;font-size:14px;">Ticket generado</p>
+            <p style="font-size:12px;color:#a8a29e;margin-top:2px;">Pedido cerrado y registrado.</p>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <button onclick="window.print()"
+                style="background:#1c1917;color:#fff;border:none;border-radius:12px;padding:12px 0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+            <span style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;">Imprimir</span>
+        </button>
+        <button id="btn-pdf" onclick="descargarPDF()"
+                style="background:#dc2626;color:#fff;border:none;border-radius:12px;padding:12px 0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+            <span style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;">PDF</span>
+        </button>
+        <a th:href="@{/pedidos}"
+           style="background:#fff;border:1px solid #e7e5e4;color:#57534e;border-radius:12px;padding:12px 0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;">Volver</span>
+        </a>
+    </div>
+</div>
+
+<!-- ══════════ BOLETA SUNAT ══════════ -->
+<div id="ticket-sunat" style="box-shadow:0 10px 40px rgba(0,0,0,.12);border:1px solid #e7e5e4;border-radius:8px;overflow:hidden;">
+
+    <div style="height:6px;background:linear-gradient(90deg,#1c1917,#44403c);"></div>
+
+    <div class="ticket-seccion" style="text-align:center;background:#fafaf9;">
+        <p style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.15em;color:#1c1917;margin:0;">Restaurante Campestre</p>
+        <p style="font-size:18px;font-weight:900;color:#d97706;font-style:italic;margin:2px 0;">"Los Patos"</p>
+        <p style="font-size:9px;color:#78716c;margin:4px 0 0;">Av. Principal 123 · Lima, Perú<br>Tel: 01-234-5678 · lospatos@rest.pe</p>
+        <p style="font-size:9px;color:#78716c;margin:3px 0 0;">RUC: <strong style="color:#1c1917;">20123456789</strong></p>
+    </div>
+
+    <hr class="ticket-separador">
+
+    <div class="ticket-seccion" style="text-align:center;background:#1c1917;padding:10px 16px;">
+        <p style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:#fff;margin:0;">Boleta de Venta Electrónica</p>
+        <p style="font-size:16px;font-weight:900;color:#f59e0b;letter-spacing:.08em;margin:2px 0 0;" th:text="${ticket.serieNumero}">B001-00000001</p>
+    </div>
+
+    <hr class="ticket-separador">
+
+    <div class="ticket-seccion" style="font-size:10px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="color:#78716c;font-weight:700;">Fecha emisión</span>
+            <span style="font-weight:900;color:#1c1917;" th:text="${#temporals.format(ticket.fechaEmision,'dd/MM/yyyy HH:mm')}">01/01/2026</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+            <span style="color:#78716c;font-weight:700;">Mesa N°</span>
+            <span style="font-weight:900;color:#1c1917;" th:text="${ticket.pedido.mesa?.numero}">1</span>
+        </div>
+    </div>
+
+    <hr class="ticket-separador" th:if="${ticket.pedido.cliente != null}">
+
+    <div class="ticket-seccion" style="font-size:10px;" th:if="${ticket.pedido.cliente != null}">
+        <p style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;color:#78716c;margin:0 0 6px;">Datos del cliente</p>
+        <th:block th:if="${ticket.pedido.cliente instanceof T(com.Restaurante.Sistema.entity.ClienteNatural)}">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                <span style="color:#78716c;font-weight:700;">DNI</span>
+                <span style="font-weight:900;color:#1c1917;" th:text="${ticket.pedido.cliente.dni}">12345678</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+                <span style="color:#78716c;font-weight:700;">Cliente</span>
+                <span style="font-weight:900;color:#1c1917;text-align:right;max-width:55%;" th:text="${ticket.pedido.cliente.apellidos + ', ' + ticket.pedido.cliente.nombre}">García, Carlos</span>
+            </div>
+        </th:block>
+        <th:block th:unless="${ticket.pedido.cliente instanceof T(com.Restaurante.Sistema.entity.ClienteNatural)}">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+                <span style="color:#78716c;font-weight:700;">RUC</span>
+                <span style="font-weight:900;color:#1c1917;" th:text="${ticket.pedido.cliente.ruc}">20123456789</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+                <span style="color:#78716c;font-weight:700;">Razón Social</span>
+                <span style="font-weight:900;color:#1c1917;text-align:right;max-width:55%;" th:text="${ticket.pedido.cliente.razonSocial}">Empresa S.A.C.</span>
+            </div>
+        </th:block>
+    </div>
+
+    <hr class="ticket-separador">
+
+    <div class="ticket-seccion">
+        <table class="tabla-items">
+            <thead>
+                <tr>
+                    <th style="text-align:left;width:10%;">Cant.</th>
+                    <th style="text-align:left;">Descripción</th>
+                    <th style="text-align:right;width:18%;">P.Unit</th>
+                    <th style="text-align:right;width:18%;">Importe</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="d : ${detalles}">
+                    <td th:text="${d.cantidad}">1</td>
+                    <td th:text="${d.platoBebida.nombre}">Plato</td>
+                    <td style="text-align:right;" th:text="${#numbers.formatDecimal(d.platoBebida.precioVenta, 1, 2)}">0.00</td>
+                    <td style="text-align:right;font-weight:900;" th:text="${#numbers.formatDecimal(d.subtotal, 1, 2)}">0.00</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <hr class="ticket-separador">
+
+    <div class="ticket-seccion" style="font-size:10px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+            <span style="color:#78716c;font-weight:700;">Op. Gravada</span>
+            <span style="font-weight:700;color:#1c1917;" th:text="'S/ ' + ${#numbers.formatDecimal(ticket.total / 1.18, 1, 2)}">S/ 0.00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:#78716c;font-weight:700;">IGV (18%)</span>
+            <span style="font-weight:700;color:#1c1917;" th:text="'S/ ' + ${#numbers.formatDecimal(ticket.total - ticket.total / 1.18, 1, 2)}">S/ 0.00</span>
+        </div>
+        <div style="border-top:2px solid #1c1917;padding-top:8px;display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:#1c1917;">Total a Pagar</span>
+            <span style="font-size:20px;font-weight:900;color:#16a34a;" th:text="'S/ ' + ${#numbers.formatDecimal(ticket.total, 1, 2)}">S/ 0.00</span>
+        </div>
+        <div style="margin-top:8px;display:flex;justify-content:space-between;">
+            <span style="color:#78716c;font-weight:700;">Forma de Pago</span>
+            <span style="font-weight:900;color:#1c1917;text-transform:uppercase;" th:text="${ticket.metodoPago ?: 'Efectivo'}">Efectivo</span>
+        </div>
+    </div>
+
+    <hr class="ticket-separador">
+
+    <div class="ticket-seccion" style="text-align:center;font-size:8px;color:#a8a29e;background:#fafaf9;padding:10px 16px;">
+        <p style="font-weight:700;color:#78716c;margin:0 0 4px;">Representación impresa de la<br><strong style="color:#1c1917;">Boleta de Venta Electrónica</strong></p>
+        <p style="margin:0;">Autorizado mediante Resolución de Superintendencia<br>N° 000-2024/SUNAT · www.sunat.gob.pe</p>
+        <p style="margin:6px 0 0;font-size:9px;font-weight:900;color:#57534e;">¡Gracias por su visita · Vuelva pronto!</p>
+    </div>
+
+    <div style="height:4px;background:linear-gradient(90deg,#d97706,#f59e0b);"></div>
+</div>
+
+<!-- ── Datos para generar el PDF (jsPDF directo, sin html2canvas) ── -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    window._TICKET = {
+        serie:    /*[[${ticket.serieNumero}]]*/ 'B001-0001',
+        fecha:    /*[[${#temporals.format(ticket.fechaEmision,'dd/MM/yyyy HH:mm')}]]*/ '',
+        mesa:     /*[[${ticket.pedido.mesa?.numero}]]*/ '',
+        metodo:   /*[[${ticket.metodoPago}]]*/ 'Efectivo',
+        total:    /*[[${ticket.total}]]*/ 0,
+        clienteTipo:   /*[[${ticket.pedido.cliente == null ? '' : (ticket.pedido.cliente instanceof T(com.Restaurante.Sistema.entity.ClienteNatural) ? 'NATURAL' : 'JURIDICO')}]]*/ '',
+        clienteDoc:    /*[[${ticket.pedido.cliente == null ? '' : (ticket.pedido.cliente instanceof T(com.Restaurante.Sistema.entity.ClienteNatural) ? ticket.pedido.cliente.dni : ticket.pedido.cliente.ruc)}]]*/ '',
+        clienteNombre: /*[[${ticket.pedido.cliente == null ? '' : (ticket.pedido.cliente instanceof T(com.Restaurante.Sistema.entity.ClienteNatural) ? (ticket.pedido.cliente.apellidos + ', ' + ticket.pedido.cliente.nombre) : ticket.pedido.cliente.razonSocial)}]]*/ '',
+        items: [
+            /*[# th:each="d : ${detalles}"]*/
+            {
+                cant:   /*[[${d.cantidad}]]*/ 0,
+                nombre: /*[[${d.platoBebida.nombre}]]*/ '',
+                punit:  /*[[${d.platoBebida.precioVenta}]]*/ 0,
+                imp:    /*[[${d.subtotal}]]*/ 0
+            },
+            /*[/]*/
+        ]
+    };
+    /*]]>*/
+</script>
+
+<script>
+function descargarPDF() {
+    const btn = document.getElementById('btn-pdf');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="animate-spin" style="width:20px;height:20px;margin:0 auto;" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity:.25"/><path fill="currentColor" style="opacity:.75" d="M4 12a8 8 0 018-8v8z"/></svg>';
+
+    try {
+        const t = window._TICKET;
+        const { jsPDF } = window.jspdf;
+
+        // Ancho 80mm; alto dinámico según cantidad de ítems
+        const W = 80;
+        const lineH = 4.2;
+        const baseH = 130;
+        const H = baseH + (t.items.length * lineH);
+
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, H] });
+        let y = 10;
+        const cx = W / 2;
+        const money = n => 'S/ ' + Number(n).toFixed(2);
+
+        const center = (txt, size, bold, color) => {
+            doc.setFontSize(size);
+            doc.setFont('courier', bold ? 'bold' : 'normal');
+            if (color) doc.setTextColor(color[0], color[1], color[2]); else doc.setTextColor(28,25,23);
+            doc.text(txt, cx, y, { align: 'center' });
+            y += size * 0.45 + 1;
+        };
+        const rowLR = (l, r, size, bold) => {
+            doc.setFontSize(size);
+            doc.setFont('courier', bold ? 'bold' : 'normal');
+            doc.setTextColor(28,25,23);
+            doc.text(l, 6, y);
+            doc.text(r, W - 6, y, { align: 'right' });
+            y += size * 0.45 + 1.5;
+        };
+        const dash = () => {
+            doc.setLineDashPattern([1, 1], 0);
+            doc.setDrawColor(180,180,180);
+            doc.line(6, y, W - 6, y);
+            doc.setLineDashPattern([], 0);
+            y += 4;
+        };
+
+        // Cabecera
+        center('RESTAURANTE CAMPESTRE', 9, true);
+        center('"Los Patos"', 13, true, [217,119,6]);
+        center('Av. Principal 123 - Lima, Peru', 7, false, [120,113,108]);
+        center('Tel: 01-234-5678', 7, false, [120,113,108]);
+        center('RUC: 20123456789', 8, true);
+        y += 1; dash();
+
+        // Tipo de comprobante
+        center('BOLETA DE VENTA ELECTRONICA', 8, true);
+        center(t.serie, 11, true, [217,119,6]);
+        y += 1; dash();
+
+        // Fecha y mesa
+        rowLR('Fecha:', t.fecha, 8, false);
+        rowLR('Mesa N:', String(t.mesa), 8, false);
+        dash();
+
+        // Cliente
+        if (t.clienteTipo) {
+            center('DATOS DEL CLIENTE', 7, true, [120,113,108]);
+            y += 1;
+            rowLR(t.clienteTipo === 'NATURAL' ? 'DNI:' : 'RUC:', t.clienteDoc, 8, false);
+            // Nombre puede ser largo → envolver
+            doc.setFontSize(8); doc.setFont('courier','bold'); doc.setTextColor(28,25,23);
+            const nombreLines = doc.splitTextToSize(t.clienteNombre, W - 12);
+            nombreLines.forEach(ln => { doc.text(ln, 6, y); y += 3.8; });
+            y += 1; dash();
+        }
+
+        // Items header
+        doc.setFontSize(7.5); doc.setFont('courier','bold'); doc.setTextColor(120,113,108);
+        doc.text('CANT', 6, y);
+        doc.text('DESCRIPCION', 16, y);
+        doc.text('IMPORTE', W - 6, y, { align: 'right' });
+        y += 4;
+        doc.setDrawColor(200,200,200); doc.line(6, y - 2.5, W - 6, y - 2.5);
+
+        // Items
+        doc.setTextColor(28,25,23);
+        t.items.forEach(it => {
+            doc.setFontSize(8); doc.setFont('courier','normal');
+            doc.text(String(it.cant), 7, y);
+            const desc = doc.splitTextToSize(it.nombre, 40);
+            doc.text(desc[0], 16, y);
+            doc.setFont('courier','bold');
+            doc.text(money(it.imp), W - 6, y, { align: 'right' });
+            y += lineH;
+            // P.Unit pequeño debajo
+            doc.setFontSize(6.5); doc.setFont('courier','normal'); doc.setTextColor(150,150,150);
+            doc.text('  @ ' + money(it.punit), 16, y - 1.5);
+            doc.setTextColor(28,25,23);
+        });
+        y += 1; dash();
+
+        // Totales
+        const opGravada = t.total / 1.18;
+        const igv = t.total - opGravada;
+        rowLR('Op. Gravada:', money(opGravada), 8, false);
+        rowLR('IGV (18%):', money(igv), 8, false);
+        y += 1;
+        doc.setDrawColor(28,25,23); doc.setLineWidth(0.4); doc.line(6, y, W - 6, y); doc.setLineWidth(0.2);
+        y += 4;
+        doc.setFontSize(10); doc.setFont('courier','bold'); doc.setTextColor(28,25,23);
+        doc.text('TOTAL:', 6, y);
+        doc.setTextColor(22,163,74); doc.setFontSize(13);
+        doc.text(money(t.total), W - 6, y, { align: 'right' });
+        y += 6;
+        doc.setTextColor(28,25,23);
+        rowLR('Forma de pago:', (t.metodo || 'Efectivo'), 8, false);
+        dash();
+
+        // Pie legal
+        center('Representacion impresa de la', 6.5, false, [150,150,150]);
+        center('Boleta de Venta Electronica', 7, true, [120,113,108]);
+        center('Autorizado por SUNAT', 6.5, false, [150,150,150]);
+        y += 1;
+        center('Gracias por su visita!', 8, true, [87,83,78]);
+
+        doc.save(t.serie + '.pdf');
+    } catch(e) {
+        console.error(e);
+        alert('No se pudo generar el PDF. Usa "Imprimir → Guardar como PDF".');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+}
+</script>
+
+</body>
+</html>

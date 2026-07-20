@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section}, 'Emisión de Comprobantes')}">
+<body>
+<section>
+
+    <!-- Encabezado -->
+    <div class="flex justify-between items-center mb-8">
+        <p class="text-stone-500 font-medium">Historial de comprobantes generados.</p>
+        <span class="text-xs font-black text-stone-400 uppercase tracking-widest"
+              th:text="${totalTickets} + ' tickets'">0 tickets</span>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         MÉTRICAS
+   
+
+    <!-- Desglose por método de pago -->
+    <div class="flex flex-wrap gap-3 mb-8" th:if="${!#lists.isEmpty(resumenMetodos)}">
+        <div th:each="r : ${resumenMetodos}"
+             class="bg-white rounded-xl border border-stone-200 shadow-sm px-5 py-3 flex items-center gap-4">
+            <div class="h-9 w-9 rounded-lg bg-amber-50 flex items-center justify-center">
+                <i class="fas fa-credit-card text-amber-600 text-sm"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-stone-400"
+                   th:text="${r[0] != null ? r[0] : 'Sin método'}">Efectivo</p>
+                <p class="text-sm font-black text-stone-800">
+                    <span th:text="${r[1]}">0</span>
+                    <span class="text-stone-400 font-bold">·</span>
+                    <span class="text-green-700" th:text="'S/.' + ${#numbers.formatDecimal(r[2], 1, 2)}">S/.0.00</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         FILTRO + BUSCADOR
+    ══════════════════════════════════════════ -->
+    <form method="get" th:action="@{/tickets}"
+          class="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 mb-6 flex flex-col sm:flex-row gap-3 sm:items-center">
+
+        <!-- Buscador por serie -->
+        <div class="relative flex-1">
+            <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-300 text-xs pointer-events-none"></i>
+            <input type="text" name="q" th:value="${q}" placeholder="Buscar por serie (ej. B001-...)"
+                   class="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition-all placeholder:text-stone-300">
+        </div>
+
+        <!-- Filtro por método de pago -->
+        <select name="metodo"
+                class="bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition-all sm:w-56">
+            <option value="">Todos los métodos</option>
+            <option th:each="m : ${metodos}" th:value="${m}" th:text="${m}"
+                    th:selected="${m == metodoSel}"></option>
+        </select>
+
+        <button type="submit"
+                class="bg-stone-900 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-stone-800 transition-all shadow-lg active:scale-95 justify-center">
+            <i class="fas fa-filter text-amber-400"></i> Filtrar
+        </button>
+        <a th:href="@{/tickets}"
+           class="bg-stone-100 text-stone-600 px-5 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 hover:bg-stone-200 transition-all border border-stone-200 justify-center">
+            <i class="fas fa-xmark"></i> Limpiar
+        </a>
+    </form>
+
+    <!-- ══════════════════════════════════════════
+         TABLA
+    ══════════════════════════════════════════ -->
+    <div class="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <table class="w-full text-left">
+            <thead class="bg-stone-50 border-b border-stone-200">
+                <tr>
+                    <th class="px-6 py-4 text-xs font-black uppercase tracking-wider text-stone-500">Serie</th>
+                    <th class="px-6 py-4 text-xs font-black uppercase tracking-wider text-stone-500">Pedido</th>
+                    <th class="px-6 py-4 text-xs font-black uppercase tracking-wider text-stone-500">Mesa</th>
+                    <th class="px-6 py-4 text-xs font-black uppercase tracking-wider text-stone-500">Método</th>
+                    <th class="px-6 py-4 text-xs font-black uppercase tracking-wider text-stone-500">Total</th>
+                    <th class="px-6 py-4 text-xs font-black uppercase tracking-wider text-stone-500">Fecha</th>
+                    <th class="px-6 py-4 text-xs font-black uppercase tracking-wider text-stone-500"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100">
+                <tr th:each="t : ${tickets}" class="hover:bg-stone-50 transition">
+                    <td class="px-6 py-4 font-black text-stone-900 text-sm" th:text="${t.serieNumero}">T-0001</td>
+                    <td class="px-6 py-4 text-stone-600 text-sm" th:text="'#' + ${t.pedido.id_pedido}">#1</td>
+                    <td class="px-6 py-4 text-stone-600 text-sm" th:text="'Mesa ' + ${t.pedido.mesa?.numero}">Mesa 1</td>
+                    <td class="px-6 py-4 text-sm">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-stone-100 text-[11px] font-black text-stone-700 tracking-wider"
+                              th:text="${t.metodoPago}">Efectivo</span>
+                    </td>
+                    <td class="px-6 py-4 font-black text-green-700 text-sm" th:text="'S/.' + ${#numbers.formatDecimal(t.total, 1, 2)}">S/.0.00</td>
+                    <td class="px-6 py-4 text-stone-400 text-sm" th:text="${#temporals.format(t.fechaEmision, 'dd/MM/yyyy HH:mm')}">01/01/2025</td>
+                    <td class="px-6 py-4">
+                        <a th:href="@{/tickets/{id}/imprimir(id=${t.id_ticket})}"
+                           class="text-xs font-black text-amber-600 hover:text-amber-800 uppercase tracking-wider">
+                            Ver / Imprimir
+                        </a>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(tickets)}">
+                    <td colspan="7" class="px-6 py-12 text-center text-stone-400 text-sm font-bold">
+                        No se encontraron comprobantes con los filtros aplicados.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ══════════════════════════════════════════
+             PAGINACIÓN (10 por página)
+        ══════════════════════════════════════════ -->
+        <div th:if="${ticketsPage.totalPages > 0}"
+             class="px-6 py-4 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+            <span class="text-[10px] font-black text-stone-400 uppercase tracking-widest">
+                Página <span th:text="${ticketsPage.number + 1}">1</span>
+                de <span th:text="${ticketsPage.totalPages}">1</span>
+                <span class="text-stone-300">·</span>
+                <span th:text="${ticketsPage.totalElements}">0</span> resultados
+            </span>
+
+            <div class="flex items-center gap-1.5">
+                <!-- Anterior -->
+                <a th:href="@{/tickets(page=${ticketsPage.number - 1}, metodo=${metodoSel}, q=${q})}"
+                   th:classappend="${ticketsPage.first} ? 'pointer-events-none opacity-40' : ''"
+                   class="h-9 px-3 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 hover:text-amber-600 transition-all flex items-center text-xs font-black uppercase tracking-wider">
+                    <i class="fas fa-chevron-left text-[10px]"></i>
+                </a>
+
+                <!-- Números de página -->
+                <a th:each="i : ${#numbers.sequence(0, ticketsPage.totalPages - 1)}"
+                   th:href="@{/tickets(page=${i}, metodo=${metodoSel}, q=${q})}"
+                   th:text="${i + 1}"
+                   th:classappend="${i == ticketsPage.number} ? 'bg-stone-900 text-white border-stone-900' : 'text-stone-500 hover:bg-stone-50 hover:text-amber-600'"
+                   class="h-9 min-w-9 px-3 rounded-lg border border-stone-200 transition-all flex items-center justify-center text-xs font-black">1</a>
+
+                <!-- Siguiente -->
+                <a th:href="@{/tickets(page=${ticketsPage.number + 1}, metodo=${metodoSel}, q=${q})}"
+                   th:classappend="${ticketsPage.last} ? 'pointer-events-none opacity-40' : ''"
+                   class="h-9 px-3 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 hover:text-amber-600 transition-all flex items-center text-xs font-black uppercase tracking-wider">
+                    <i class="fas fa-chevron-right text-[10px]"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+</body>
+</html>

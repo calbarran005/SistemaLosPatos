@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificación MFA | Restaurante Campestre Los Patos</title>
+    <!-- Tailwind CSS CDN + Fuente profesional -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuente Inter y Font Awesome (íconos) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Personalización de la configuración de Tailwind para sombras y transiciones -->
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        /* Mejora el placeholder de inputs */
+        input::placeholder {
+            color: #C8BC9B;
+            font-weight: 400;
+            font-size: 0.85rem;
+        }
+        /* Transición suave para efecto hover en inputs */
+        .input-transition {
+            transition: all 0.2s ease;
+        }
+        /* Estilo específico para el campo de código MFA (6 dígitos) */
+        .mfa-input {
+            letter-spacing: 0.5em;
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+        }
+        .mfa-input::placeholder {
+            letter-spacing: 0.2em;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-stone-100 via-amber-50/40 to-stone-200 flex items-center justify-center p-5">
+
+    <!-- Card vertical principal - mismo estilo que el login -->
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-stone-200/80 transition-all duration-300 hover:shadow-2xl">
+
+        <!-- Cabecera con identidad campestre (misma zona superior) -->
+        <div class="relative bg-stone-900 px-8 pt-10 pb-12 text-center overflow-hidden">
+            <!-- Elementos decorativos de fondo sutiles -->
+            <div class="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+            
+            <!-- Logo / ícono principal - cambiado a escudo/shield para MFA -->
+            <div class="relative z-10 inline-flex items-center justify-center h-24 w-24 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-xl border-4 border-white/20">
+                <i class="fas fa-shield-alt text-4xl text-stone-900"></i>
+            </div>
+
+            <!-- Títulos descriptivos -->
+            <div class="relative z-10 mt-6">
+                <h1 class="text-4xl font-black tracking-tight text-white">
+                    Verificación
+                </h1>
+                <p class="mt-2 text-amber-400 text-xs tracking-[0.3em] uppercase font-semibold">
+                    Autenticación de Dos Factores
+                </p>
+                <div class="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10 backdrop-blur-sm">
+                    <div class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                    <span class="text-xs text-stone-200 tracking-wider uppercase font-medium">
+                        Código de Seguridad
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario de verificación MFA -->
+        <div class="px-8 py-8">
+            <form th:action="@{/mfa-verify}" method="post" class="space-y-6">
+                
+                <!-- Mensajes de Error -->
+                <div th:if="${error}" class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl mb-4">
+                    <p class="text-red-700 text-xs font-bold" th:text="${error}">Código inválido o expirado.</p>
+                </div>
+
+                <!-- Campo Código de Seguridad -->
+                <div>
+                    <label for="code" class="block mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-stone-500">
+                        <i class="fas fa-key mr-1 text-amber-600/70"></i> Código de 6 dígitos
+                    </label>
+                    <div class="relative">
+                        <input type="text" 
+                               id="code"
+                               name="code"
+                               placeholder="000000" 
+                               required
+                               autofocus
+                               maxlength="6"
+                               class="w-full rounded-xl border border-stone-200 bg-stone-50 px-5 py-3.5 text-sm font-medium text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 text-center tracking-[0.3em] text-lg font-mono">
+                        <div class="absolute inset-y-0 right-4 flex items-center text-stone-400 pointer-events-none">
+                            <i class="fas fa-qrcode text-sm"></i>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-[10px] text-stone-400 tracking-wide">
+                        <i class="fas fa-google mr-1"></i> Ingresa el código temporal de Google Authenticator o similar.
+                    </p>
+                </div>
+
+                <!-- Botón de Verificar -->
+                <div class="pt-2">
+                    <button type="submit" 
+                            class="group w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 py-3.5 text-sm font-black uppercase tracking-[0.2em] text-stone-900 shadow-md shadow-amber-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-500/30 flex items-center justify-center gap-2">
+                        <i class="fas fa-shield-alt text-sm"></i>
+                        <span>Verificar y Entrar</span>
+                        <i class="fas fa-arrow-right text-sm transition-transform duration-300 group-hover:translate-x-1"></i>
+                    </button>
+                </div>
+
+                <!-- Enlace para volver al inicio de sesión -->
+                <div class="text-center pt-2">
+                    <a th:href="@{/logout}" class="text-xs font-semibold tracking-wide text-stone-400 hover:text-amber-600 transition-colors duration-200">
+                        <i class="fas fa-sign-out-alt mr-1"></i> Volver al inicio de sesión
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Footer con información institucional (mismo que login) -->
+        <div class="border-t border-stone-100 bg-stone-50/80 px-6 py-4 text-center flex flex-col sm:flex-row justify-between items-center gap-2">
+            <p class="text-[10px] text-stone-400 tracking-[0.2em] uppercase font-semibold">
+                <i class="fas fa-chart-line mr-1"></i> Sistema de Gestión • v2.0
+            </p>
+            <div class="flex gap-3 text-stone-400 text-xs">
+                <i class="fas fa-leaf hover:text-amber-600 transition" title="Entorno campestre"></i>
+                <i class="fas fa-shield-alt hover:text-amber-600 transition" title="Conexión segura"></i>
+                <i class="fas fa-headset hover:text-amber-600 transition" title="Soporte"></i>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
