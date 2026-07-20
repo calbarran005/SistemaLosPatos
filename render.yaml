@@ -1,0 +1,39 @@
+databases:
+  - name: lospatos-db
+    databaseName: restaurante
+    user: restaurante
+    plan: free
+
+services:
+  - type: web
+    name: sistema-los-patos
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /login
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase:
+          name: lospatos-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: lospatos-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: lospatos-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: lospatos-db
+          property: user
+      - key: DB_PASS
+        fromDatabase:
+          name: lospatos-db
+          property: password
+      # APP_BASE_URL (para los QR de mesas) se deriva de RENDER_EXTERNAL_URL,
+      # que Render inyecta automáticamente con el esquema https incluido.
+      # Ver application-prod.properties.
