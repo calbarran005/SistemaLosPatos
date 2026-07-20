@@ -2,7 +2,9 @@ package com.Restaurante.Sistema.config;
 
 import com.Restaurante.Sistema.entity.*;
 import com.Restaurante.Sistema.repository.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -11,7 +13,7 @@ import java.util.Map;
 /**
  * Carga datos de ejemplo la primera vez que arranca la app (idempotente: cada
  * bloque solo se ejecuta si su tabla está vacía, así no duplica lo que ya exista).
- * Insumos → Proveedores → Categorías → Platos con receta.
+ * Roles → Usuario admin → Insumos → Proveedores → Categorías → Platos con receta.
  */
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -21,25 +23,84 @@ public class DataSeeder implements CommandLineRunner {
     private final ProveedorRepository proveedorRepo;
     private final PlatoBebidaRepository platoRepo;
     private final PlatoInsumoRepository recetaRepo;
+    private final RolRepository rolRepo;
+    private final UserRepository userRepo;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.admin.email:admin@lospatos.com}")
+    private String adminEmail;
+
+    @Value("${app.admin.password:admin123}")
+    private String adminPassword;
+
+    @Value("${app.admin.mfa-secret:JBSWY3DPEHPK3PXP}")
+    private String adminMfaSecret;
 
     public DataSeeder(CategoriaMenuRepository categoriaRepo,
                       InsumoRepository insumoRepo,
                       ProveedorRepository proveedorRepo,
                       PlatoBebidaRepository platoRepo,
-                      PlatoInsumoRepository recetaRepo) {
+                      PlatoInsumoRepository recetaRepo,
+                      RolRepository rolRepo,
+                      UserRepository userRepo,
+                      PasswordEncoder passwordEncoder) {
         this.categoriaRepo = categoriaRepo;
         this.insumoRepo = insumoRepo;
         this.proveedorRepo = proveedorRepo;
         this.platoRepo = platoRepo;
         this.recetaRepo = recetaRepo;
+        this.rolRepo = rolRepo;
+        this.userRepo = userRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) {
+        seedRoles();
+        seedAdmin();
         seedInsumos();
         seedProveedores();
         seedCategorias();
         seedPlatosConReceta();
+    }
+
+    // ── Roles ───────────────────────────────────────────────────────────────
+    private void seedRoles() {
+        if (rolRepo.count() > 0) return;
+        rolRepo.save(rol("ROLE_ADMIN", "Acceso total"));
+        rolRepo.save(rol("ROLE_MESERO", "Pedidos y mesas"));
+        rolRepo.save(rol("ROLE_CAJERO", "Pagos y tickets"));
+    }
+
+    private Rol rol(String nombre, String permisos) {
+        Rol r = new Rol();
+        r.setNombre(nombre);
+        r.setPermisos(permisos);
+        return r;
+    }
+
+    // ── Usuario administrador inicial ───────────────────────────────────────
+    // Sin esto la base de datos de Render arranca vacía y no hay forma de
+    // entrar al sistema. La contraseña se guarda cifrada con BCrypt, igual que
+    // las que crea EmpleadoController.
+    private void seedAdmin() {
+        if (userRepo.findByEmail(adminEmail).isPresent()) return;
+
+        Rol admin = rolRepo.findAll().stream()
+                .filter(r -> "ROLE_ADMIN".equalsIgnoreCase(r.getNombre()))
+                .findFirst()
+                .orElseGet(() -> rolRepo.save(rol("ROLE_ADMIN", "Acceso total")));
+
+        Usuario u = new Usuario();
+        u.setNombre("Administrador");
+        u.setEmail(adminEmail);
+        u.setContrasena(passwordEncoder.encode(adminPassword));
+        u.setRol(admin);
+        // Mismo MFA que el admin de database_schema.sql, para que el código del
+        // autenticador sea el mismo en local y en producción.
+        u.setMfaSecret(adminMfaSecret);
+        u.setMfaEnabled(true);
+        userRepo.save(u);
     }
 
     // ── Almacén de insumos ──────────────────────────────────────────────────
