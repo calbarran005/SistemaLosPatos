@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* Tailwind v4 ignora tailwind.config.js y solo busca clases a partir de la
+   carpeta de este archivo (static/), donde no hay plantillas. Sin esto no se
+   compilan las clases que solo aparecen en los .html. */
+@source "../templates";

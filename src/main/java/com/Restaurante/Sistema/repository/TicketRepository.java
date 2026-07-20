@@ -25,10 +25,14 @@ public interface TicketRepository extends JpaRepository<Ticket, Integer> {
     /**
      * Búsqueda paginada con filtro opcional por método de pago y texto libre
      * sobre la serie del comprobante. Un parámetro {@code null} desactiva ese filtro.
+     *
+     * El CAST es necesario en PostgreSQL: ante un parámetro suelto en
+     * "? IS NULL" no puede deducir el tipo y aborta la consulta
+     * ("could not determine data type of parameter"). MySQL sí lo tolera.
      */
     @Query("SELECT t FROM Ticket t WHERE " +
-           "(:metodo IS NULL OR LOWER(t.metodoPago) = LOWER(:metodo)) AND " +
-           "(:q IS NULL OR LOWER(t.serieNumero) LIKE LOWER(CONCAT('%', :q, '%')))")
+           "(CAST(:metodo AS string) IS NULL OR LOWER(t.metodoPago) = LOWER(:metodo)) AND " +
+           "(CAST(:q AS string) IS NULL OR LOWER(t.serieNumero) LIKE LOWER(CONCAT('%', :q, '%')))")
     Page<Ticket> buscar(@Param("metodo") String metodo, @Param("q") String q, Pageable pageable);
 
     /** Métodos de pago distintos existentes (para poblar el desplegable de filtro). */
